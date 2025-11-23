@@ -1,0 +1,21 @@
+{
+  "name": "Panel Unificado de PWAs",
+  "short_name": "PanelPRO",
+  "description": "Panel para gestionar tus aplicaciones PWA en un solo lugar.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

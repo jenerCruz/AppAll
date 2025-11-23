@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Unificado de PWAs</title>
+    <link rel="manifest" href="manifest.json">
+    <!-- Tailwind CSS -->
+    <link href="./assets/css/styles.css" rel="stylesheet">
+        :root {
+            --sidebar-width: 16rem;
+            --header-height: 4rem;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #0f172a;
+        }
+
+        #app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        #app-content {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background-color: #f8fafc;
+            overflow: auto;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .sidebar-item {
+            color: #d1d5db;
+        }
+
+        .sidebar-item:hover {
+            background-color: #374151;
+        }
+
+        .sidebar-item.active {
+            background-color: #6366f1;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        @media (max-width: 768px) {
+            #sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: var(--sidebar-width);
+                transform: translateX(-100%);
+                z-index: 50;
+                transition: transform 0.3s ease-in-out;
+            }
+            #sidebar.open {
+                transform: translateX(0);
+            }
+            #main-content {
+                width: 100%;
+                margin-left: 0;
+            }
+            #menu-button {
+                display: block;
+            }
+        }
+
+        @media (min-width: 769px) {
+            #sidebar {
+                transform: translateX(0);
+                flex-shrink: 0;
+                width: var(--sidebar-width);
+            }
+            #main-content {
+                width: calc(100% - var(--sidebar-width));
+                margin-left: var(--sidebar-width);
+            }
+            #menu-button {
+                display: none;
+            }
+        }
+
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 40;
+            display: none;
+        }
+
+        #overlay.active {
+            display: block;
+        }
+
+        .welcome-message {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            background-color: #f8fafc;
+            color: #374151;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .welcome-message h2 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+        }
+
+        .welcome-gif {
+            max-width: 200px;
+            margin-bottom: 1rem;
+        }
+
+        .connection-status {
+            position: relative;
+        }
+
+        .connection-dot {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .connected {
+            background-color: #10b981;
+            animation: pulse 1.5s infinite;
+        }
+
+        .disconnected {
+            background-color: #f59e0b;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background-color: #1f2937;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            width: 90%;
+            max-width: 500px;
+            color: white;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .avatar-option {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.2s;
+        }
+
+        .avatar-option.selected {
+            border-color: #6366f1;
+        }
+
+        .avatar-option img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+    <!-- Overlay para móvil -->
+    <div id="overlay"></div>
+
+    <!-- Modal de Configuración -->
+    <div id="config-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Configura tu Perfil</h2>
+            <form id="user-config-form">
+                <div class="mb-4">
+                    <label for="user-name" class="block text-sm font-medium mb-1">Nombre</label>
+                    <input type="text" id="user-name" class="w-full p-2 rounded bg-gray-800 border border-gray-600" required>
+                </div>
+                <div class="mb-4">
+                    <label for="user-nickname" class="block text-sm font-medium mb-1">Sobrenombre</label>
+                    <input type="text" id="user-nickname" class="w-full p-2 rounded bg-gray-800 border border-gray-600">
+                </div>
+                <div class="mb-4">
+                    <label for="user-branch" class="block text-sm font-medium mb-1">Sucursal</label>
+                    <input type="text" id="user-branch" class="w-full p-2 rounded bg-gray-800 border border-gray-600">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Avatar</label>
+                    <div class="avatar-grid">
+                        <div class="avatar-option" data-avatar="https://mistral.ai/avatar1.jpg">
+                            <img src="https://mistral.ai/avatar1.jpg" alt="Avatar 1">
+                        </div>
+                        <div class="avatar-option" data-avatar="https://mistral.ai/avatar2.jpg">
+                            <img src="https://mistral.ai/avatar2.jpg" alt="Avatar 2">
+                        </div>
+                        <div class="avatar-option" data-avatar="https://mistral.ai/avatar3.jpg">
+                            <img src="https://mistral.ai/avatar3.jpg" alt="Avatar 3">
+                        </div>
+                        <div class="avatar-option" data-avatar="https://mistral.ai/avatar4.jpg">
+                            <img src="https://mistral.ai/avatar4.jpg" alt="Avatar 4">
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="w-full p-2 bg-indigo-600 rounded hover:bg-indigo-700">Guardar</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="app-container">
+        <!-- Barra Lateral -->
+        <aside id="sidebar" class="bg-gray-900 text-white p-4 flex flex-col justify-between shadow-xl">
+            <div>
+                <h1 class="text-2xl font-bold mb-8 text-indigo-400">
+                    <span class="text-white">Panel</span> PRO
+                </h1>
+
+                <!-- Sección de Usuario -->
+                <div class="mb-8 p-3 rounded-lg bg-gray-800 flex items-center">
+                    <div id="user-avatar" class="w-10 h-10 rounded-full bg-gray-600 mr-3"></div>
+                    <div>
+                        <p class="text-sm font-semibold" id="user-name-display">Usuario</p>
+                        <p class="text-xs text-gray-400 truncate" id="user-branch-display">Sucursal</p>
+                    </div>
+                </div>
+
+                <!-- Módulos de Apps -->
+                <div class="space-y-2">
+                    <h2 class="text-xs uppercase tracking-wider text-gray-400 mb-3">Tus Apps</h2>
+
+                    <!-- App 1 -->
+                    <div data-app-path="apps/app1/index.html" class="sidebar-item active" data-app-id="app-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.5H18a2.25 2.25 0 0 1-2.25 2.25H12A2.25 2.25 0 0 1 9.75 18H3.75a.75.75 0 0 1-.75-.75V5.25c0-.414.336-.75.75-.75h14.25a.75.75 0 0 1 .75.75v1.375c0 .344.135.679.375.922l.625.625v1.375a.75.75 0 0 1-.75.75H12a.75.75 0 0 1-.75-.75V7.5a.75.75 0 0 1 .75-.75h8.25z" />
+                        </svg>
+                        <span>App: Registro de Evidencias</span>
+                    </div>
+
+                    <!-- App 2 -->
+                    <div data-app-path="apps/app2/index.html" class="sidebar-item" data-app-id="app-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                        <span>App: Meta Mensual</span>
+                    </div>
+
+                    <!-- App 3 (Deshabilitada) -->
+                    <div data-app-path="" class="sidebar-item opacity-50 cursor-not-allowed" data-app-id="app-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125l6.75 6.75 4.875-4.875M21 9V6.75a1.5 1.5 0 0 0-1.5-1.5H5.25A1.5 1.5 0 0 0 3.75 6.75V12A1.5 1.5 0 0 0 5.25 13.5h1.5M12 20.25h4.75a2.25 2.25 0 0 0 2.25-2.25v-10A2.25 2.25 0 0 0 16.75 5H7.25A2.25 2.25 0 0 0 5 7.25v10.5A2.25 2.25 0 0 0 7.25 20.25z" />
+                        </svg>
+                        <span>App: Reportes</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botón de Conexión -->
+            <div class="mt-8 pt-4 border-t border-gray-700 space-y-3">
+                <p class="text-xs uppercase tracking-wider text-gray-400 mb-3">Estado</p>
+                <button id="connection-button" class="sidebar-item w-full justify-center bg-gray-800 text-indigo-300 hover:bg-gray-700 connection-status">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 9.75 16.5 6.75m0 0-3 3m3-3v7.5m-9 3 3 3m0 0 3-3m-3 3V8.25" />
+                    </svg>
+                    <span>Conectado</span>
+                    <div id="connection-dot" class="connection-dot connected"></div>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Contenido Principal -->
+        <main id="main-content" class="flex-grow flex flex-col">
+            <!-- Barra superior móvil -->
+            <header id="mobile-header" class="md:hidden bg-gray-900 text-white flex items-center h-16 shadow-lg p-3">
+                <button id="menu-button" class="p-2 mr-3 rounded-full hover:bg-gray-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                    </svg>
+                </button>
+                <h2 class="text-xl font-semibold text-indigo-400">Panel PRO</h2>
+            </header>
+
+            <!-- Contenedor para cargar las apps -->
+            <div id="app-content" class="flex-grow bg-white p-4 overflow-auto">
+                <!-- Aquí se cargarán las apps -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Service Worker -->
+    <script>
+        // Registrar Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registrado:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Fallo en registro de ServiceWorker:', error);
+                    });
+            });
+        }
+    </script>
+
+    <!-- Lógica de la App -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const appContent = document.getElementById('app-content');
+            const sidebarItems = document.querySelectorAll('.sidebar-item[data-app-path]:not([data-app-path=""])');
+            const sidebar = document.getElementById('sidebar');
+            const menuButton = document.getElementById('menu-button');
+            const overlay = document.getElementById('overlay');
+            const configModal = document.getElementById('config-modal');
+            const userConfigForm = document.getElementById('user-config-form');
+            const userNameDisplay = document.getElementById('user-name-display');
+            const userBranchDisplay = document.getElementById('user-branch-display');
+            const userAvatarDisplay = document.getElementById('user-avatar');
+            const connectionButton = document.getElementById('connection-button');
+            const connectionDot = document.getElementById('connection-dot');
+
+            // Datos de usuario (se guardan en localStorage)
+            let userData = JSON.parse(localStorage.getItem('userData')) || {
+                name: 'Usuario',
+                nickname: '',
+                branch: 'Sucursal',
+                avatar: ''
+            };
+
+            // Avatares de Mistral (reemplaza con URLs reales)
+            const avatars = [
+                'https://mistral.ai/avatar1.jpg',
+                'https://mistral.ai/avatar2.jpg',
+                'https://mistral.ai/avatar3.jpg',
+                'https://mistral.ai/avatar4.jpg'
+            ];
+
+            // Cargar datos del usuario
+            const loadUserData = () => {
+                userNameDisplay.textContent = userData.name || 'Usuario';
+                userBranchDisplay.textContent = userData.branch || 'Sucursal';
+                if (userData.avatar) {
+                    userAvatarDisplay.innerHTML = `<img src="${userData.avatar}" class="w-full h-full rounded-full object-cover">`;
+                }
+            };
+
+            // Mostrar mensaje de bienvenida con GIF
+            const showWelcomeMessage = () => {
+                appContent.innerHTML = `
+                    <div class="welcome-message">
+                        <img src="https://media.giphy.com/media/l0HlNaQ6gWfllcjDO/giphy.gif" alt="Tamagotchi animado" class="welcome-gif">
+                        <h2>¡Hola, ${userData.name || 'Usuario'}!</h2>
+                        <p>Elige una app del menú para comenzar.</p>
+                    </div>
+                `;
+            };
+
+            // Mostrar modal de configuración
+            const showConfigModal = () => {
+                document.getElementById('user-name').value = userData.name || '';
+                document.getElementById('user-nickname').value = userData.nickname || '';
+                document.getElementById('user-branch').value = userData.branch || '';
+
+                // Cargar avatares
+                const avatarOptions = document.querySelectorAll('.avatar-option');
+                avatarOptions.forEach((option, index) => {
+                    option.innerHTML = `<img src="${avatars[index]}" alt="Avatar ${index + 1}">`;
+                    option.onclick = () => {
+                        avatarOptions.forEach(opt => opt.classList.remove('selected'));
+                        option.classList.add('selected');
+                        userData.avatar = avatars[index];
+                    };
+                    if (userData.avatar === avatars[index]) {
+                        option.classList.add('selected');
+                    }
+                });
+
+                configModal.style.display = 'flex';
+            };
+
+            // Guardar configuración del usuario
+            userConfigForm.onsubmit = (e) => {
+                e.preventDefault();
+                userData.name = document.getElementById('user-name').value;
+                userData.nickname = document.getElementById('user-nickname').value;
+                userData.branch = document.getElementById('user-branch').value;
+
+                localStorage.setItem('userData', JSON.stringify(userData));
+                loadUserData();
+                configModal.style.display = 'none';
+
+                // Mostrar mensaje de bienvenida
+                showWelcomeMessage();
+            };
+
+            // Cargar app usando fetch
+            const loadApp = (path) => {
+                appContent.innerHTML = `
+                    <div class="welcome-message">
+                        <h2>Cargando...</h2>
+                        <p>Espere un momento, por favor.</p>
+                    </div>
+                `;
+
+                fetch(path)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Error al cargar la app: ${response.status}`);
+                        }
+                        return response.text();
+                    })
+                    .then(html => {
+                        appContent.innerHTML = html;
+
+                        // Cargar scripts de la app
+                        const scripts = appContent.querySelectorAll('script');
+                        scripts.forEach(script => {
+                            if (script.src) {
+                                const newScript = document.createElement('script');
+                                newScript.src = script.src;
+                                appContent.appendChild(newScript);
+                            } else {
+                                const newScript = document.createElement('script');
+                                newScript.textContent = script.textContent;
+                                appContent.appendChild(newScript);
+                            }
+                        });
+
+                        // Cargar estilos de la app
+                        const links = appContent.querySelectorAll('link[rel="stylesheet"]');
+                        links.forEach(link => {
+                            const newLink = document.createElement('link');
+                            newLink.rel = 'stylesheet';
+                            newLink.href = link.href;
+                            document.head.appendChild(newLink);
+                        });
+                    })
+                    .catch(error => {
+                        console.error("Error al cargar la app:", error);
+                        appContent.innerHTML = `
+                            <div class="error-message">
+                                <h2>No se pudo cargar la aplicación</h2>
+                                <p>La ruta no está disponible.</p>
+                                <p>Verifica la ruta: ${path}</p>
+                            </div>
+                        `;
+                    });
+            };
+
+            // Toggle menú móvil
+            const toggleMenu = () => {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('active');
+            };
+
+            menuButton.addEventListener('click', toggleMenu);
+            overlay.addEventListener('click', toggleMenu);
+
+            // Navegación entre módulos
+            sidebarItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const newPath = item.getAttribute('data-app-path');
+                    if (newPath) {
+                        loadApp(newPath);
+                        sidebarItems.forEach(i => i.classList.remove('active'));
+                        item.classList.add('active');
+                        if (window.innerWidth <= 768) toggleMenu();
+                    }
+                });
+            });
+
+            // Verificar conexión a internet
+            const updateConnectionStatus = () => {
+                if (navigator.onLine) {
+                    connectionDot.classList.remove('disconnected');
+                    connectionDot.classList.add('connected');
+                    connectionButton.querySelector('span').textContent = 'Conectado';
+                } else {
+                    connectionDot.classList.remove('connected');
+                    connectionDot.classList.add('disconnected');
+                    connectionButton.querySelector('span').textContent = 'Desconectado';
+                }
+            };
+
+            // Eventos de conexión
+            window.addEventListener('online', updateConnectionStatus);
+            window.addEventListener('offline', updateConnectionStatus);
+
+            // Inicializar
+            loadUserData();
+            updateConnectionStatus();
+            showConfigModal(); // Mostrar modal al inicio para configurar el perfil
+            showWelcomeMessage(); // Mostrar mensaje de bienvenida al inicio
+        });
+    </script>
+</body>
+</html>
