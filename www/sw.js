@@ -4,7 +4,11 @@ const urlsToCache = [
   '/index.html',
   '/manifest.json',
   '/assets/css/styles.css',
-  '/assets/js/main.js',
+  '/assets/images/tamagotchi.gif',
+  '/assets/avatars/avatar1.jpg',
+  '/assets/avatars/avatar2.jpg',
+  '/assets/avatars/avatar3.jpg',
+  '/assets/avatars/avatar4.jpg',
   '/apps/app1/index.html',
   '/apps/app2/index.html'
 ];

@@ -1,23 +1,19 @@
-const CACHE_NAME = 'asistenciaspro-cache-v4'; // Nueva versión para forzar la actualización
+const CACHE_NAME = 'asistenciaspro-cache-vComplete';
 const CDN_CACHE_NAME = 'cdn-cache-v1';
 
-// Recursos locales a precachear (incluyendo el index y el script en la ruta corregida).
 const ASSETS_TO_PRECACHE = [
-  './', // Ruta raíz
+  './', 
   './index.html',
-  './assets/js/app.js', // Asumiendo que el código JS está aquí (si lo separas del index.html)
+  './assets/js/app.js', 
   './manifest.json',
-  // Puedes agregar aquí las rutas a tus iconos:
   './assets/icons/icon-192x192.png' 
 ];
 
-// Evento de Instalación: Pre-cache de archivos locales
 self.addEventListener('install', (e) => {
   console.log('[SW] Instalando y precacheando recursos locales...');
   e.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        // Ejecutamos addAll con los archivos locales.
         return cache.addAll(ASSETS_TO_PRECACHE);
       })
       .catch((error) => {
@@ -26,7 +22,6 @@ self.addEventListener('install', (e) => {
   );
 });
 
-// Evento de Activación: Limpia cachés antiguas
 self.addEventListener('activate', (e) => {
   console.log('[SW] Activado. Limpiando cachés antiguas...');
   e.waitUntil(
@@ -39,42 +34,46 @@ self.addEventListener('activate', (e) => {
       }));
     })
   );
-  return self.clients.claim(); // Asegura que el SW tome control inmediatamente
+  return self.clients.claim();
 });
 
-// Evento de Fetch: Estrategia de "Cache Falling Back to Network" para locales y "Cache Only/Cache First" para CDNs
+// Evento de Fetch: Lógica CORREGIDA y más robusta
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
 
-  // 1. Estrategia para CDNs (Tailwind, Lucide, Chart.js, Tesseract.js)
-  // Usaremos Cache First para CDNs: si está en caché, lo usa; si no, lo descarga y lo guarda.
+  // Excluir la API de GitHub de la caché del Service Worker para no interferir con la sincronización
+  if (url.origin.includes('github.com')) {
+    // Si es la API de GitHub, simplemente la dejamos pasar a la red.
+    return; 
+  }
+
+  // 1. Estrategia para CDNs (Cache First)
   if (url.origin === 'https://cdn.jsdelivr.net' || 
       url.origin === 'https://unpkg.com' ||
       url.origin === 'https://cdn.tailwindcss.com' ||
-      url.origin === 'https://api.github.com' // Excluimos Gist Sync de la caché
-      ) {
+      url.origin.includes('gstatic.com')) { // Agregamos gstatic por si acaso
     
-    // Dejamos que Gist Sync pase a la red directamente sin caché de Service Worker
-    if (url.origin === 'https://api.github.com') {
-        return; // No cacheamos la API de GitHub
-    }
-
     e.respondWith(
       caches.open(CDN_CACHE_NAME).then((cache) => {
-        return cache.match(e.request).then((response) => {
-          // Si está en caché, lo devuelve
-          if (response) {
-            return response;
+        return cache.match(e.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse; // Cache Hit: Devolver la versión cacheadada
           }
 
-          // Si no está, va a la red y lo guarda en caché
+          // Cache Miss: Ir a la red
           return fetch(e.request).then((networkResponse) => {
-            if (networkResponse.status === 200) {
-              cache.put(e.request, networkResponse.clone());
+            // CLONAMOS la respuesta original antes de que la usemos para cualquier cosa.
+            const responseClone = networkResponse.clone(); 
+            
+            // 1. Guardar el CLON en la caché
+            if (networkResponse.ok) { // networkResponse.ok es true para 200-299
+              cache.put(e.request, responseClone);
             }
-            return networkResponse;
-          }).catch(() => {
-            // Manejo de fallas de CDN, especialmente en modo offline
+            // 2. Devolver la respuesta ORIGINAL al cliente
+            return networkResponse; 
+          }).catch((error) => {
+            // Error en la red (o fallo de la respuesta original)
+            console.error('[SW] Error en fetch de CDN:', error);
             return new Response('Error: CDN resource not found in cache and network failed.', {status: 503});
           });
         });
@@ -83,23 +82,26 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   
-  // 2. Estrategia para el resto de recursos (locales, incluyendo index.html)
-  // Usamos Network Falling Back to Cache (para revalidación): intenta la red, si falla, usa el caché.
+  // 2. Estrategia para recursos locales (Network Falling Back to Cache)
   e.respondWith(
-    caches.match(e.request).then((cachedResponse) => {
-      // Intenta usar la red para asegurar que siempre tienes la última versión (si estás online)
-      return fetch(e.request).then((networkResponse) => {
-        // Si tiene éxito, actualiza el caché y devuelve la respuesta de la red
-        if (networkResponse.status === 200) {
+    fetch(e.request).then((networkResponse) => {
+      // Si tiene éxito, CLONAMOS, actualizamos el caché y devolvemos la respuesta original.
+      if (networkResponse.ok && e.request.method === 'GET') {
+          const responseClone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(e.request, networkResponse.clone());
-          });
-        }
-        return networkResponse;
-      }).catch(() => {
-        // Si la red falla, devuelve el caché. Esto funciona excelente en modo offline.
-        return cachedResponse;
-      });
+              cache.put(e.request, responseClone);
+          }).catch(e => console.error("[SW] Error al guardar en caché local:", e));
+      }
+      return networkResponse; // Devolvemos la respuesta original de la red
+
+    }).catch(async () => {
+      // Si la red falla, buscamos en el caché.
+      const cachedResponse = await caches.match(e.request);
+      if (cachedResponse) {
+          return cachedResponse;
+      }
+      // Si no hay caché ni red, devuelve un error 
+      return new Response('Error: Recurso no encontrado en caché ni en red.', {status: 404});
     })
   );
 });
