@@ -1,4 +1,4 @@
-const CACHE_NAME = 'asistenciaspro-cache-v3';
+const CACHE_NAME = 'asistenciaspro-cache-vComplete';
 const CDN_CACHE_NAME = 'cdn-cache-v1';
 
 const ASSETS_TO_PRECACHE = [
