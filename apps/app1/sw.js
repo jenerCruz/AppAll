@@ -1,5 +1,5 @@
-const CACHE_NAME = 'asistenciaspro-cache-v4'; // Nueva versión para forzar la actualización
-const CDN_CACHE_NAME = 'cdn-cache-v1';
+const CACHE_NAME = 'asistenciaspro-vComplete'; // Nueva versión para forzar la actualización
+const CDN_CACHE_NAME = 'cdn-cache-complete';
 
 // Recursos locales a precachear (incluyendo el index y el script en la ruta corregida).
 const ASSETS_TO_PRECACHE = [
