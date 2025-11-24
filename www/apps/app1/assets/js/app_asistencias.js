@@ -1,4 +1,6 @@
-/* =============================================================
+window.AppAsistencias = (function() {
+    // --- Contenido original encapsulado ---
+    /* =============================================================
    APP ASISTENCIAS - Lógica Encapsulada
    ============================================================= */
 window.iniciarAppAsistencias = async function() {
@@ -284,3 +286,9 @@ window.iniciarAppAsistencias = async function() {
         console.error("Error iniciando App Asistencias:", e);
     }
 };
+
+    // --- Fin del contenido original ---
+    return {
+        // Funciones públicas aquí (puedes agregarlas según lo que necesites exponer)
+    };
+})();
