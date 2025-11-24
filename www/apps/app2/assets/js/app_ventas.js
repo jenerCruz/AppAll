@@ -1,4 +1,6 @@
-/* ============================================================
+window.AppVentas = (function() {
+    // --- Contenido original encapsulado ---
+    /* ============================================================
    APP VENTAS - Lógica Encapsulada
    ============================================================ */
 window.iniciarAppVentas = function() {
@@ -506,3 +508,9 @@ window.iniciarAppVentas = function() {
     // --- INVOCAR INICIO ---
     init();
 };
+
+    // --- Fin del contenido original ---
+    return {
+        // Funciones públicas aquí (puedes agregarlas según lo que necesites exponer)
+    };
+})();
