@@ -13,6 +13,7 @@ const APP_SHELL = [
   // JS internos
   "./assets/js/chart.min.js",
   "./assets/js/lucide.min.js",
+  "./assets/js/app_ventas.js"
 
   // Íconos
   "./assets/icons/icon-192.png",
